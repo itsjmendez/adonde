@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth-context";
 import { updateProfile } from "@/lib/profile";
+import { ImageUpload } from "@/components/image-upload";
+import { StorageTest } from "@/components/storage-test";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -25,6 +27,7 @@ export default function ProfileSetupPage() {
     nightOwl: false,
     earlyRiser: false,
   });
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -56,6 +59,7 @@ export default function ProfileSetupPage() {
         bio: formData.bio,
         location: formData.location,
         lifestyle_preferences: lifestylePreferences,
+        avatar_url: profileImageUrl,
         is_profile_complete: true,
       });
 
@@ -101,6 +105,16 @@ export default function ProfileSetupPage() {
         )}
         
         <form className="space-y-6" onSubmit={handleSubmit}>
+          <StorageTest />
+          
+          <div className="flex justify-center mb-6">
+            <ImageUpload 
+              userId={user?.id || ''}
+              currentImageUrl={profileImageUrl}
+              onImageUpdate={setProfileImageUrl}
+            />
+          </div>
+
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="first-name">First name</Label>

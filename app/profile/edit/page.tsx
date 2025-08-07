@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ImageUpload } from "@/components/ui/image-upload";
+import { ImageUpload } from "@/components/image-upload";
 import { Navigation } from "@/components/navigation";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -21,7 +21,7 @@ export default function ProfileEditPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -40,7 +40,6 @@ export default function ProfileEditPage() {
     lookingFor: '',
     amenitiesWanted: '',
     dealBreakers: '',
-    avatarUrl: '',
   });
 
   useEffect(() => {
@@ -59,6 +58,7 @@ export default function ProfileEditPage() {
       setError('Failed to load profile');
     } else if (data) {
       setProfile(data);
+      setProfileImageUrl(data.avatar_url || null);
       
       // Parse full name into first and last name
       const nameParts = data.full_name?.split(' ') || ['', ''];
@@ -82,7 +82,6 @@ export default function ProfileEditPage() {
         lookingFor: data.looking_for?.join(', ') || '',
         amenitiesWanted: data.amenities_wanted?.join(', ') || '',
         dealBreakers: data.deal_breakers?.join(', ') || '',
-        avatarUrl: data.avatar_url || '',
       });
     }
     
@@ -113,13 +112,6 @@ export default function ProfileEditPage() {
         earlyRiser: formData.earlyRiser,
       };
 
-      // For now, just store the local URL. In a real app, you'd upload to a storage service like Supabase Storage
-      let avatarUrl = formData.avatarUrl;
-      if (avatarFile) {
-        // In a real implementation, upload to Supabase Storage here
-        // For demo purposes, we'll keep the blob URL
-        avatarUrl = formData.avatarUrl;
-      }
 
       const profileUpdates = {
         full_name: `${formData.firstName} ${formData.lastName}`.trim(),
@@ -130,7 +122,7 @@ export default function ProfileEditPage() {
         rent_budget_min: formData.rentBudgetMin ? parseInt(formData.rentBudgetMin) : undefined,
         rent_budget_max: formData.rentBudgetMax ? parseInt(formData.rentBudgetMax) : undefined,
         move_in_date: formData.moveInDate || undefined,
-        avatar_url: avatarUrl,
+        avatar_url: profileImageUrl,
         lifestyle_preferences: lifestylePreferences,
         looking_for: formData.lookingFor ? formData.lookingFor.split(',').map(s => s.trim()).filter(s => s) : [],
         amenities_wanted: formData.amenitiesWanted ? formData.amenitiesWanted.split(',').map(s => s.trim()).filter(s => s) : [],
@@ -203,11 +195,11 @@ export default function ProfileEditPage() {
             <CardHeader>
               <CardTitle>Profile Picture</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex justify-center">
               <ImageUpload
-                currentImageUrl={formData.avatarUrl}
-                onImageChange={setAvatarFile}
-                onImageUrlChange={(url) => setFormData(prev => ({ ...prev, avatarUrl: url }))}
+                userId={user?.id || ''}
+                currentImageUrl={profileImageUrl}
+                onImageUpdate={setProfileImageUrl}
               />
             </CardContent>
           </Card>

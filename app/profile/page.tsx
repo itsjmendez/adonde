@@ -5,8 +5,9 @@ import { useAuth } from '@/lib/auth-context';
 import { getProfile, Profile } from '@/lib/profile';
 import { Button } from '@/components/ui/button';
 import { Navigation } from '@/components/navigation';
+import { UserAvatar } from '@/components/user-avatar';
 import Link from 'next/link';
-import { User, MapPin, Calendar, Edit, Settings } from 'lucide-react';
+import { MapPin, Calendar, Edit, Settings } from 'lucide-react';
 
 export default function ProfilePage() {
   const { user } = useAuth();
@@ -190,16 +191,12 @@ export default function ProfilePage() {
           {/* Profile Card */}
           <div className="lg:col-span-1">
             <div className="bg-card rounded-lg border p-6 text-center">
-              <div className="w-24 h-24 bg-muted rounded-full mx-auto mb-4 flex items-center justify-center">
-                {profile.avatar_url ? (
-                  <img 
-                    src={profile.avatar_url} 
-                    alt="Profile" 
-                    className="w-24 h-24 rounded-full object-cover"
-                  />
-                ) : (
-                  <User className="h-12 w-12 text-muted-foreground" />
-                )}
+              <div className="flex justify-center mb-4">
+                <UserAvatar 
+                  imageUrl={profile.avatar_url}
+                  name={profile.display_name || profile.full_name}
+                  size="xl"
+                />
               </div>
               
               <h2 className="text-xl font-semibold mb-2">
