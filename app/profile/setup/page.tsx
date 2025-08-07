@@ -1,8 +1,79 @@
+'use client'
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAuth } from "@/lib/auth-context";
+import { updateProfile } from "@/lib/profile";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function ProfileSetupPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    age: '',
+    bio: '',
+    location: '',
+    smoker: false,
+    petFriendly: false,
+    nightOwl: false,
+    earlyRiser: false,
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const lifestylePreferences = {
+        smoker: formData.smoker,
+        petFriendly: formData.petFriendly,
+        nightOwl: formData.nightOwl,
+        earlyRiser: formData.earlyRiser,
+      };
+
+      const { error } = await updateProfile(user.id, {
+        full_name: `${formData.firstName} ${formData.lastName}`.trim(),
+        display_name: formData.firstName,
+        age: formData.age ? parseInt(formData.age) : undefined,
+        bio: formData.bio,
+        location: formData.location,
+        lifestyle_preferences: lifestylePreferences,
+        is_profile_complete: true,
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    }
+
+    setLoading(false);
+  };
+
+  const handleSkip = () => {
+    router.push('/dashboard');
+  };
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-2xl">
@@ -23,13 +94,21 @@ export default function ProfileSetupPage() {
           </div>
         </div>
 
-        <form className="space-y-6">
+        {error && (
+          <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md mb-6">
+            {error}
+          </div>
+        )}
+        
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="first-name">First name</Label>
               <Input
                 id="first-name"
-                name="first-name"
+                name="firstName"
+                value={formData.firstName}
+                onChange={handleInputChange}
                 placeholder="Enter your first name"
               />
             </div>
@@ -38,7 +117,9 @@ export default function ProfileSetupPage() {
               <Label htmlFor="last-name">Last name</Label>
               <Input
                 id="last-name"
-                name="last-name"
+                name="lastName"
+                value={formData.lastName}
+                onChange={handleInputChange}
                 placeholder="Enter your last name"
               />
             </div>
@@ -50,6 +131,8 @@ export default function ProfileSetupPage() {
               type="number"
               id="age"
               name="age"
+              value={formData.age}
+              onChange={handleInputChange}
               min="18"
               max="100"
               placeholder="Enter your age"
@@ -61,6 +144,8 @@ export default function ProfileSetupPage() {
             <textarea
               id="bio"
               name="bio"
+              value={formData.bio}
+              onChange={handleInputChange}
               rows={4}
               className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               placeholder="Tell us about yourself, your lifestyle, and what you're looking for in a roommate..."
@@ -72,6 +157,8 @@ export default function ProfileSetupPage() {
             <Input
               id="location"
               name="location"
+              value={formData.location}
+              onChange={handleInputChange}
               placeholder="Enter your city, state"
             />
           </div>
@@ -84,6 +171,8 @@ export default function ProfileSetupPage() {
                   id="smoker"
                   name="smoker"
                   type="checkbox"
+                  checked={formData.smoker}
+                  onChange={handleInputChange}
                   className="h-4 w-4 rounded border-border"
                 />
                 <label htmlFor="smoker" className="text-sm">
@@ -93,8 +182,10 @@ export default function ProfileSetupPage() {
               <div className="flex items-center space-x-2">
                 <input
                   id="pet-friendly"
-                  name="pet-friendly"
+                  name="petFriendly"
                   type="checkbox"
+                  checked={formData.petFriendly}
+                  onChange={handleInputChange}
                   className="h-4 w-4 rounded border-border"
                 />
                 <label htmlFor="pet-friendly" className="text-sm">
@@ -104,8 +195,10 @@ export default function ProfileSetupPage() {
               <div className="flex items-center space-x-2">
                 <input
                   id="night-owl"
-                  name="night-owl"
+                  name="nightOwl"
                   type="checkbox"
+                  checked={formData.nightOwl}
+                  onChange={handleInputChange}
                   className="h-4 w-4 rounded border-border"
                 />
                 <label htmlFor="night-owl" className="text-sm">
@@ -115,8 +208,10 @@ export default function ProfileSetupPage() {
               <div className="flex items-center space-x-2">
                 <input
                   id="early-riser"
-                  name="early-riser"
+                  name="earlyRiser"
                   type="checkbox"
+                  checked={formData.earlyRiser}
+                  onChange={handleInputChange}
                   className="h-4 w-4 rounded border-border"
                 />
                 <label htmlFor="early-riser" className="text-sm">
@@ -127,11 +222,11 @@ export default function ProfileSetupPage() {
           </div>
 
           <div className="pt-6 flex justify-between">
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" onClick={handleSkip} disabled={loading}>
               Skip for now
             </Button>
-            <Button type="submit">
-              Continue
+            <Button type="submit" disabled={loading}>
+              {loading ? 'Saving...' : 'Continue'}
             </Button>
           </div>
         </form>
