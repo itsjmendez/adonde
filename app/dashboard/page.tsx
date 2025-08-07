@@ -20,7 +20,7 @@ export default function DashboardPage() {
 
         <Card className="mb-8">
           <CardContent className="p-6">
-            <div className="flex flex-wrap items-end gap-4">
+            <div className="flex flex-wrap items-end gap-4" suppressHydrationWarning={true}>
               <div className="flex-1 min-w-64 space-y-2">
                 <Label htmlFor="location">Location</Label>
                 <Input
