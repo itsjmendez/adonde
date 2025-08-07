@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/lib/auth-context";
 import { updateProfile } from "@/lib/profile";
 import { ImageUpload } from "@/components/image-upload";
-import { StorageTest } from "@/components/storage-test";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -105,8 +104,6 @@ export default function ProfileSetupPage() {
         )}
         
         <form className="space-y-6" onSubmit={handleSubmit}>
-          <StorageTest />
-          
           <div className="flex justify-center mb-6">
             <ImageUpload 
               userId={user?.id || ''}
