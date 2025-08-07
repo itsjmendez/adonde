@@ -9,6 +9,10 @@ export interface Profile {
   bio?: string
   age?: number
   location?: string
+  latitude?: number
+  longitude?: number
+  search_location?: string
+  search_radius?: number
   rent_budget_min?: number
   rent_budget_max?: number
   move_in_date?: string
@@ -90,4 +94,20 @@ export async function checkProfileComplete(userId: string): Promise<{ isComplete
   const isComplete = data?.is_profile_complete || false;
   console.log('Profile is complete:', isComplete);
   return { isComplete, error: null }
+}
+
+export async function searchRoommates(
+  userLatitude: number,
+  userLongitude: number,
+  radiusMiles: number = 25,
+  limit: number = 20
+): Promise<{ data: (Profile & { distance: number })[] | null; error: any }> {
+  const { data, error } = await supabase.rpc('search_roommates_by_location', {
+    user_lat: userLatitude,
+    user_lng: userLongitude,
+    radius_miles: radiusMiles,
+    result_limit: limit
+  })
+
+  return { data, error }
 }

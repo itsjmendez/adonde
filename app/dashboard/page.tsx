@@ -1,10 +1,82 @@
+"use client"
+
+import { useState, useEffect } from "react";
 import { Navigation } from "@/components/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { LocationSearch } from "@/components/location-search";
+import { RoommateCard } from "@/components/roommate-card";
+import { Profile, searchRoommates } from "@/lib/profile";
+import { supabase } from "@/lib/supabase";
 
 export default function DashboardPage() {
+  const [roommates, setRoommates] = useState<(Profile & { distance: number })[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [hasSearched, setHasSearched] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      setCurrentUser(user)
+    }
+    getUser()
+  }, [])
+
+  const handleLocationSearch = async (
+    location: string, 
+    latitude: number, 
+    longitude: number, 
+    radius: number
+  ) => {
+    if (!currentUser) {
+      setError("Please log in to search for roommates")
+      return
+    }
+
+    setIsSearching(true)
+    setError(null)
+    setHasSearched(true)
+
+    try {
+      // Update user's search preferences with coordinates we already have
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          search_location: location,
+          search_radius: radius,
+          latitude: latitude,
+          longitude: longitude
+        })
+        .eq('id', currentUser.id)
+      
+      if (updateError) {
+        console.error('Error updating user search location:', updateError)
+      }
+
+      // Search for roommates
+      const { data, error: searchError } = await searchRoommates(latitude, longitude, radius)
+      
+      if (searchError) {
+        throw searchError
+      }
+
+      setRoommates(data || [])
+    } catch (err) {
+      console.error("Search error:", err)
+      setError("Failed to search for roommates. Please try again.")
+      setRoommates([])
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  const handleConnect = async (profileId: string) => {
+    // TODO: Implement connection logic
+    console.log("Connect with profile:", profileId)
+  }
+
   return (
     <div className="min-h-screen">
       <Navigation />
@@ -20,67 +92,64 @@ export default function DashboardPage() {
 
         <Card className="mb-8">
           <CardContent className="p-6">
-            <div className="flex flex-wrap items-end gap-4" suppressHydrationWarning={true}>
-              <div className="flex-1 min-w-64 space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <Input
-                  id="location"
-                  placeholder="Enter city or zip code"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="radius">Radius</Label>
-                <select
-                  id="radius"
-                  className="px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option>5 miles</option>
-                  <option>10 miles</option>
-                  <option>25 miles</option>
-                  <option>50 miles</option>
-                </select>
-              </div>
-              <Button>Search</Button>
-            </div>
+            <LocationSearch
+              onLocationSelect={handleLocationSearch}
+              isSearching={isSearching}
+            />
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {[...Array(6)].map((_, i) => (
-            <Card key={i} className="hover:shadow-sm transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="font-medium">Alex Johnson</h3>
-                    <p className="text-sm text-muted-foreground">25 • 2.3 miles away</p>
-                  </div>
-                  <span className="text-sm font-medium">$1,200/mo</span>
-                </div>
-                
-                <p className="text-sm text-muted-foreground mb-4">
-                  Graduate student looking for a clean, quiet roommate. Love cooking and outdoor activities.
-                </p>
-                
-                <div className="flex gap-2 mb-4">
-                  <span className="px-2 py-1 bg-secondary text-xs rounded-full">
-                    Pet Friendly
-                  </span>
-                  <span className="px-2 py-1 bg-secondary text-xs rounded-full">
-                    Early Riser
-                  </span>
-                </div>
-                
-                <Button className="w-full" size="sm">
-                  Connect
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {error && (
+          <Card className="mb-8 border-destructive">
+            <CardContent className="p-6">
+              <p className="text-sm text-destructive">{error}</p>
+            </CardContent>
+          </Card>
+        )}
 
-        <div className="mt-12 text-center">
-          <Button variant="outline">Load more</Button>
-        </div>
+        {hasSearched && (
+          <>
+            <div className="mb-6">
+              <h2 className="text-xl font-medium mb-2">
+                {isSearching ? "Searching..." : `Found ${roommates.length} roommate${roommates.length !== 1 ? 's' : ''}`}
+              </h2>
+            </div>
+
+            {roommates.length > 0 && (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {roommates.map((profile) => (
+                  <RoommateCard
+                    key={profile.id}
+                    profile={profile}
+                    onConnect={handleConnect}
+                  />
+                ))}
+              </div>
+            )}
+
+            {roommates.length === 0 && !isSearching && (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <h3 className="text-lg font-medium mb-2">No roommates found</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Try expanding your search radius or searching a different location.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
+
+        {!hasSearched && (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <h3 className="text-lg font-medium mb-2">Start your search</h3>
+              <p className="text-muted-foreground">
+                Enter a location above to find compatible roommates in your area.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
