@@ -1,5 +1,19 @@
 import { supabase } from './supabase'
 
+export interface ConnectionRequest {
+  id: string
+  sender_id: string
+  receiver_id: string
+  message: string
+  status: 'pending' | 'accepted' | 'declined'
+  created_at: string
+  updated_at: string
+  sender_name?: string
+  sender_avatar_url?: string
+  receiver_name?: string
+  receiver_avatar_url?: string
+}
+
 export interface Profile {
   id: string
   email?: string
@@ -110,4 +124,68 @@ export async function searchRoommates(
   })
 
   return { data, error }
+}
+
+export async function getConnectionRequests(type: 'received' | 'sent' | 'active' = 'received'): Promise<{ data: ConnectionRequest[] | null; error: any }> {
+  const { data, error } = await supabase.rpc('get_connection_requests', {
+    user_id: (await supabase.auth.getUser()).data.user?.id,
+    request_type: type
+  })
+
+  return { data, error }
+}
+
+export async function sendConnectionRequest(receiverId: string, message: string): Promise<{ data: string | null; error: any }> {
+  const { data, error } = await supabase.rpc('send_connection_request', {
+    receiver_user_id: receiverId,
+    request_message: message
+  })
+
+  return { data, error }
+}
+
+export async function respondToConnectionRequest(requestId: string, response: 'accepted' | 'declined'): Promise<{ data: boolean | null; error: any }> {
+  const { data, error } = await supabase.rpc('respond_to_connection_request', {
+    request_id: requestId,
+    response: response
+  })
+
+  return { data, error }
+}
+
+export async function getConnectionStatus(otherUserId: string): Promise<{ 
+  data: { 
+    status: 'none' | 'pending_sent' | 'pending_received' | 'connected'
+    requestId?: string 
+  } | null; 
+  error: any 
+}> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { data: null, error: 'Not authenticated' }
+
+  const { data, error } = await supabase
+    .from('connection_requests')
+    .select('id, status, sender_id, receiver_id')
+    .or(`and(sender_id.eq.${user.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${user.id})`)
+
+  if (error) return { data: null, error }
+
+  if (!data || data.length === 0) {
+    return { data: { status: 'none' }, error: null }
+  }
+
+  const connection = data[0]
+  if (connection.status === 'accepted') {
+    return { data: { status: 'connected', requestId: connection.id }, error: null }
+  } else if (connection.status === 'pending') {
+    if (connection.sender_id === user.id) {
+      // You sent the request
+      return { data: { status: 'pending_sent', requestId: connection.id }, error: null }
+    } else {
+      // You received the request
+      return { data: { status: 'pending_received', requestId: connection.id }, error: null }
+    }
+  }
+
+  return { data: { status: 'none' }, error: null }
 }

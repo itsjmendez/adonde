@@ -1,14 +1,34 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Profile } from "@/lib/profile"
+import { MessageCircle, User, CheckCircle, Clock, UserPlus } from "lucide-react"
 
 interface RoommateCardProps {
   profile: Profile & { distance?: number }
   onConnect?: (profileId: string) => void
+  onMessage?: (profileId: string) => void
+  onViewProfile?: (profileId: string) => void
+  onAcceptRequest?: (profileId: string, requestId: string) => void
+  onDeclineRequest?: (profileId: string, requestId: string) => void
+  connectionStatus?: {
+    status: 'none' | 'pending_sent' | 'pending_received' | 'connected'
+    requestId?: string
+  }
   isConnecting?: boolean
+  isRespondingToRequest?: boolean
 }
 
-export function RoommateCard({ profile, onConnect, isConnecting = false }: RoommateCardProps) {
+export function RoommateCard({ 
+  profile, 
+  onConnect, 
+  onMessage, 
+  onViewProfile,
+  onAcceptRequest,
+  onDeclineRequest,
+  connectionStatus = { status: 'none' }, 
+  isConnecting = false,
+  isRespondingToRequest = false
+}: RoommateCardProps) {
   const formatDistance = (distance?: number) => {
     if (!distance) return ""
     return distance < 1 ? "< 1 mile away" : `${Math.round(distance * 10) / 10} miles away`
@@ -89,7 +109,101 @@ export function RoommateCard({ profile, onConnect, isConnecting = false }: Roomm
           </p>
         )}
         
-        {onConnect && (
+        {connectionStatus.status === 'connected' && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-md">
+              <CheckCircle className="h-4 w-4" />
+              <span className="font-medium">Connected</span>
+            </div>
+            <div className="flex gap-2">
+              {onMessage && (
+                <Button 
+                  className="flex-1" 
+                  size="sm"
+                  onClick={() => onMessage(profile.id)}
+                >
+                  <MessageCircle className="h-4 w-4 mr-1" />
+                  Message
+                </Button>
+              )}
+              {onViewProfile && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => onViewProfile(profile.id)}
+                >
+                  <User className="h-4 w-4 mr-1" />
+                  Profile
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {connectionStatus.status === 'pending_sent' && (
+          <div className="text-center">
+            <div className="flex items-center gap-2 text-sm text-orange-600 bg-orange-50 px-3 py-2 rounded-md mb-2">
+              <Clock className="h-4 w-4" />
+              <span>Connection request sent</span>
+            </div>
+            {onViewProfile && (
+              <Button 
+                variant="outline" 
+                size="sm"
+                className="w-full"
+                onClick={() => onViewProfile(profile.id)}
+              >
+                <User className="h-4 w-4 mr-1" />
+                View Profile
+              </Button>
+            )}
+          </div>
+        )}
+
+        {connectionStatus.status === 'pending_received' && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-md">
+              <UserPlus className="h-4 w-4" />
+              <span className="font-medium">Wants to connect with you</span>
+            </div>
+            <div className="flex gap-2">
+              {onAcceptRequest && connectionStatus.requestId && (
+                <Button 
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => onAcceptRequest(profile.id, connectionStatus.requestId!)}
+                  disabled={isRespondingToRequest}
+                >
+                  {isRespondingToRequest ? "..." : "Accept"}
+                </Button>
+              )}
+              {onDeclineRequest && connectionStatus.requestId && (
+                <Button 
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => onDeclineRequest(profile.id, connectionStatus.requestId!)}
+                  disabled={isRespondingToRequest}
+                >
+                  {isRespondingToRequest ? "..." : "Decline"}
+                </Button>
+              )}
+            </div>
+            {onViewProfile && (
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="w-full"
+                onClick={() => onViewProfile(profile.id)}
+              >
+                <User className="h-4 w-4 mr-1" />
+                View Profile
+              </Button>
+            )}
+          </div>
+        )}
+
+        {connectionStatus.status === 'none' && onConnect && (
           <Button 
             className="w-full" 
             size="sm"
