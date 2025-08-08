@@ -1,115 +1,164 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Chat } from '@/components/chat'
+import { ConversationChat } from '@/components/ConversationChat'
+import { Navigation } from '@/components/navigation'
+import { supabase } from '@/lib/supabase'
+import { ChatAPI } from '@/lib/chat-api'
+import { usePresence } from '@/hooks/usePresence'
+
 interface ChatPageProps {
   params: Promise<{ connectionId: string }>;
 }
 
-export default async function ChatPage({ params }: ChatPageProps) {
-  const { connectionId } = await params;
+interface ConnectionData {
+  id: string
+  sender_id: string
+  receiver_id: string
+  sender_name: string
+  receiver_name: string
+  status: string
+}
+
+export default function ChatPage({ params }: ChatPageProps) {
+  const [connectionId, setConnectionId] = useState<string>('')
+  const [conversationId, setConversationId] = useState<string>('')
+  const [connection, setConnection] = useState<ConnectionData | null>(null)
+  const [currentUser, setCurrentUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [useNewSystem, setUseNewSystem] = useState(true) // Default to new system
+
+  // Initialize presence system
+  usePresence()
+
+  useEffect(() => {
+    const unwrapParams = async () => {
+      const { connectionId: id } = await params
+      setConnectionId(id)
+    }
+    unwrapParams()
+  }, [params])
+
+  useEffect(() => {
+    if (!connectionId) return
+    
+    const initializePage = async () => {
+      try {
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          setError('Please log in to access chat')
+          setLoading(false)
+          return
+        }
+        setCurrentUser(user)
+
+        // Initialize ChatAPI for this user
+        await ChatAPI.initializeSubscriptions(user.id)
+
+        // Get connection details
+        const { data: connectionData, error: connectionError } = await supabase.rpc('get_connection_requests', {
+          user_id: user.id,
+          request_type: 'active'
+        })
+
+        if (connectionError) throw connectionError
+
+        const connection = connectionData?.find((conn: ConnectionData) => conn.id === connectionId)
+        
+        if (!connection) {
+          setError('Connection not found or access denied')
+          setLoading(false)
+          return
+        }
+
+        setConnection(connection)
+
+        // Get conversation ID for the new system
+        if (useNewSystem) {
+          const convId = await ChatAPI.getConversationByConnectionId(connectionId)
+          if (convId) {
+            setConversationId(convId)
+          } else {
+            console.warn('No conversation found for connection, falling back to old system')
+            setUseNewSystem(false)
+          }
+        }
+      } catch (err) {
+        console.error('Error initializing chat:', err)
+        setError('Failed to load chat')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    initializePage()
+  }, [connectionId, useNewSystem])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      ChatAPI.cleanup()
+    }
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen">
+        <Navigation />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-muted-foreground">Loading chat...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || !connection || !currentUser) {
+    return (
+      <div className="min-h-screen">
+        <Navigation />
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <h2 className="text-lg font-semibold mb-2">Unable to load chat</h2>
+            <p className="text-muted-foreground">{error || 'Connection not found'}</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const otherUserName = connection.sender_id === currentUser.id 
+    ? connection.receiver_name 
+    : connection.sender_name
+
+  const currentUserName = connection.sender_id === currentUser.id 
+    ? connection.sender_name 
+    : connection.receiver_name
 
   return (
-    <div className="h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex items-center space-x-4">
-          <div className="h-10 w-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
-            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Sarah Chen</h2>
-            <p className="text-sm text-green-600 dark:text-green-400">Online</p>
-          </div>
-          <div className="ml-auto">
-            <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <div className="text-center">
-          <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-full inline-block">
-            Connection established 2 days ago
-          </div>
-        </div>
-
-        <div className="flex items-start space-x-3">
-          <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
-            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm max-w-md">
-              <p className="text-sm text-gray-900 dark:text-white">
-                Hi! Thanks for accepting my connection request. I'm really excited to potentially be roommates!
-              </p>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Sarah • 2 days ago</p>
-          </div>
-        </div>
-
-        <div className="flex items-start space-x-3 justify-end">
-          <div className="flex-1 flex justify-end">
-            <div className="bg-blue-600 rounded-lg p-3 max-w-md">
-              <p className="text-sm text-white">
-                Hi Sarah! Great to meet you. I'd love to learn more about your preferences and timeline. When are you looking to move?
-              </p>
-            </div>
-          </div>
-          <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">You</span>
-          </div>
-        </div>
-
-        <div className="flex items-start space-x-3">
-          <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
-            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm max-w-md">
-              <p className="text-sm text-gray-900 dark:text-white">
-                I'm flexible with timing but ideally looking to move in the next month. I'm currently viewing some places downtown. What about you?
-              </p>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Sarah • 1 day ago</p>
-          </div>
-        </div>
-
-        <div className="flex items-start space-x-3 justify-end">
-          <div className="flex-1 flex justify-end">
-            <div className="bg-blue-600 rounded-lg p-3 max-w-md">
-              <p className="text-sm text-white">
-                That timing works perfectly for me! I've been looking at places in the same area. Would you be interested in viewing some places together?
-              </p>
-            </div>
-          </div>
-          <div className="h-8 w-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">You</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
-        <div className="flex items-center space-x-4">
-          <div className="flex-1">
-            <input
-              type="text"
-              placeholder="Type your message..."
-              className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-full bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+    <div className="min-h-screen flex flex-col">
+      <Navigation />
+      <div className="flex-1 max-w-4xl mx-auto w-full px-6 py-6">
+        <div className="h-[600px] border border-input rounded-lg overflow-hidden">
+          {useNewSystem && conversationId ? (
+            <ConversationChat 
+              conversationId={conversationId}
+              currentUserId={currentUser.id}
+              currentUserName={currentUserName}
+              otherUserName={otherUserName}
             />
-          </div>
-          <button className="bg-blue-600 text-white p-2 rounded-full hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors">
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-            </svg>
-          </button>
+          ) : (
+            <Chat 
+              connectionId={connectionId}
+              currentUserId={currentUser.id}
+              currentUserName={currentUserName}
+              otherUserName={otherUserName}
+            />
+          )}
         </div>
       </div>
     </div>
-  );
+  )
 }

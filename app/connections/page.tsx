@@ -6,8 +6,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useEffect, useState } from "react";
 import { ConnectionRequest, getConnectionRequests, respondToConnectionRequest } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 export default function ConnectionsPage() {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<'received' | 'sent' | 'active'>('received')
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([])
   const [loading, setLoading] = useState(true)
@@ -80,6 +82,10 @@ export default function ConnectionsPage() {
       console.error('Error:', err)
       setError('An unexpected error occurred')
     }
+  }
+
+  const handleMessage = (connectionId: string) => {
+    router.push(`/chat/${connectionId}`)
   }
 
 
@@ -244,7 +250,11 @@ export default function ConnectionsPage() {
                       )}
                       
                       {activeTab === 'active' && (
-                        <Button size="sm" variant="outline">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleMessage(request.id)}
+                        >
                           Message
                         </Button>
                       )}
