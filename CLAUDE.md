@@ -22,6 +22,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Start production server**: `npm start`
 - **Lint code**: `npm run lint`
 
+## Security Guidelines
+
+**⚠️ IMPORTANT: Always check before committing files**
+
+Before creating or committing any file, verify it doesn't contain:
+
+- API keys, tokens, or credentials
+- Hardcoded URLs (especially with project IDs)
+- Database passwords or connection strings
+- Internal system details that could aid attackers
+- Migration files with sensitive schema information
+
+**Files to NEVER commit:**
+
+- Migration step files (`migration-step-*.md`)
+- Production policies with hardcoded URLs
+- Files containing database credentials
+- API key configuration files
+- Internal documentation with sensitive technical details
+
+**Use `.gitignore`** for sensitive files that should remain local only.
+
 ## Architecture
 
 ### File Structure
@@ -96,30 +118,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Successfully implemented a comprehensive location-based search system with the following features:
 
 #### **Database Schema**
+
 - Added location fields to `profiles` table (`latitude`, `longitude`, `search_location`, `search_radius`)
 - Created `geocoding_cache` table with RLS policies for efficient caching
 - Implemented Haversine distance calculation function in PostgreSQL
 - Added `search_roommates_by_location()` function for optimized spatial queries
 
 #### **API Integration**
+
 - **OpenCage Geocoding API** integration with server-side security
 - Intelligent caching system to minimize API costs
 - `/api/geocoding` endpoint for secure geocoding operations
 - Comprehensive error handling and validation
 
 #### **User Interface**
+
 - Clean location search with text input and radius slider (5-100 miles)
 - Real-time search results with distance calculations
 - Responsive roommate cards showing profiles with lifestyle preferences
 - Loading states and error handling for smooth UX
 
 #### **Performance Features**
+
 - **Geocoding Cache**: Eliminates duplicate API calls for same locations
-- **Spatial Indexing**: Fast database queries using coordinate indexes  
+- **Spatial Indexing**: Fast database queries using coordinate indexes
 - **Haversine Distance**: Accurate geographic distance calculations
 - **Optimized Queries**: Single database call for roommate search results
 
 #### **Files Created/Modified**
+
 - `migration-location-search.sql` - Database schema updates
 - `app/api/geocoding/route.ts` - Secure server-side geocoding API
 - `lib/geocoding.ts` - Geocoding service with caching logic
@@ -140,6 +167,7 @@ The feature is **fully functional** and **production-ready** with proper caching
 Successfully overhauled the entire chat system with modern real-time architecture and advanced features:
 
 #### **Scalable Database Architecture**
+
 - Created new `conversations` table supporting both direct and group chats
 - Added `chat_messages` table with enhanced features (soft delete, read receipts, threading)
 - Implemented `typing_indicators` table for real-time typing status
@@ -147,12 +175,14 @@ Successfully overhauled the entire chat system with modern real-time architectur
 - Migration functions for backward compatibility with existing data
 
 #### **Optimized WebSocket Architecture**
+
 - **Single WebSocket subscription** per user instead of per-chat channels
 - **Eliminated polling fallback** - pure real-time via Supabase Realtime
 - **Bandwidth optimized** - only essential data transmitted
 - **Scalable to hundreds of conversations** without performance impact
 
 #### **Advanced Real-Time Features**
+
 - **Typing Indicators**: See when someone is typing with auto-cleanup
 - **User Presence System**: Online/away/offline status with tab visibility detection
 - **Optimistic Updates**: Messages appear instantly before server confirmation
@@ -160,19 +190,23 @@ Successfully overhauled the entire chat system with modern real-time architectur
 - **Real-time Message Delivery**: No refresh needed, instant message updates
 
 #### **Performance Improvements**
+
 - **No More Polling**: Eliminated 3-second polling fallback entirely
 - **Single Connection**: One WebSocket for all user conversations
 - **Efficient Filtering**: Smart message routing to relevant conversations
 - **Automatic Cleanup**: Expired typing indicators removed automatically
 
 #### **Files Created/Modified**
+
 **New Architecture:**
+
 - `lib/chat-api.ts` - Centralized chat API with optimized WebSocket management
 - `components/ConversationChat.tsx` - Modern chat UI with real-time features
 - `hooks/useTypingIndicators.ts` - Typing indicator management
 - `hooks/usePresence.ts` - User presence system hooks
 
 **Database Migrations:**
+
 - `scalable-chat-schema.sql` - New scalable database schema
 - `migration-strategy.sql` - Data migration and compatibility functions
 - `chat-rls-policies.sql` - Row Level Security policies
@@ -180,9 +214,11 @@ Successfully overhauled the entire chat system with modern real-time architectur
 - `production-rls-policies.md` - Production-ready security policies
 
 **Updated:**
+
 - `app/chat/[connectionId]/page.tsx` - Uses new system with fallback to old system
 
 #### **Backward Compatibility**
+
 - Existing connections continue working with old chat system
 - Automatic conversation creation for new connections
 - Seamless migration of existing message data
@@ -195,31 +231,37 @@ The chat system is now **production-ready** with modern WebSocket architecture, 
 ## Database Setup Instructions
 
 ### For New Environments:
+
 **Location-Based Search:**
+
 1. `migration-location-search.sql` - Core schema and functions
 2. `fix-geocoding-cache-rls.sql` - RLS policy fixes
 
 **Chat System (run in order):**
+
 1. `scalable-chat-schema.sql` - Create new chat tables
-2. `migration-strategy.sql` - Migration functions  
+2. `migration-strategy.sql` - Migration functions
 3. `chat-rls-policies.sql` - Security policies
 4. `typing-presence-system.sql` - Real-time features
 5. **Enable Realtime** in Supabase dashboard for: `chat_messages`, `typing_indicators`, `user_presence`
 
 ### For Production:
+
 - Run `production-rls-policies.md` to enable secure Row Level Security
 - Test all chat features before deploying
 
 ## Next Priority Features (See next-roadmap.md)
 
 **Recommended next focus:**
+
 1. **Enhanced Connection System** - Better roommate matching and connection management
-2. **Group Chat Support** - Multi-person conversations (schema already implemented)  
+2. **Group Chat Support** - Multi-person conversations (schema already implemented)
 3. **Notification System** - In-app and email notifications
 4. **Enhanced Profile System** - Better matching through detailed profiles
 
 **Technical Improvements Needed:**
+
 - Re-enable RLS for production security
-- Add rate limiting and input validation  
+- Add rate limiting and input validation
 - Implement comprehensive testing
 - Set up error monitoring
