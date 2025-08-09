@@ -42,3 +42,7 @@ next-env.d.ts
 
 # claude code settings
 .claude/
+
+# sensitive migration files
+migration-step-*.md
+production-rls-policies.md
