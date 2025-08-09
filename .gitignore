@@ -43,6 +43,9 @@ next-env.d.ts
 # claude code settings
 .claude/
 
-# sensitive migration files
-migration-step-*.md
-production-rls-policies.md
+# sensitive migration files (now in docs/ folder)
+docs/migration-step-*.md
+docs/production-rls-policies.md
+
+# all migration files should be local only
+migrations/
