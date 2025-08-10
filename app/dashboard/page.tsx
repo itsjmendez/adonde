@@ -1,379 +1,172 @@
 "use client"
 
-import { useState, useEffect } from "react";
-import { Navigation } from "@/components/navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { LocationSearch } from "@/components/location-search";
-import { RoommateCard } from "@/components/roommate-card";
-import { ConnectionRequestModal } from "@/components/connection-request-modal";
-import { Profile, searchRoommates, getConnectionStatus, respondToConnectionRequest } from "@/lib/profile";
-import { supabase } from "@/lib/supabase";
-import { saveDashboardSearchState, getDashboardSearchState, updateCachedConnectionStatus } from "@/lib/dashboard-cache";
+import { AppLayout } from "@/components/AppLayout";
+import { Search, MessageCircle, Users, TrendingUp, Plus, Clock } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
-  const [roommates, setRoommates] = useState<(Profile & { distance: number })[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [currentUser, setCurrentUser] = useState<any>(null)
-  const [hasSearched, setHasSearched] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [connectionStatuses, setConnectionStatuses] = useState<Record<string, { status: 'none' | 'pending_sent' | 'pending_received' | 'connected', requestId?: string }>>({})
-  const [lastSearchParams, setLastSearchParams] = useState<{location: string, latitude: number, longitude: number, radius: number} | null>(null)
+  const router = useRouter()
 
-  useEffect(() => {
-    const getUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      setCurrentUser(user)
+  const quickActions = [
+    {
+      title: "Find Roommates",
+      description: "Search for compatible roommates in your area",
+      icon: Search,
+      action: () => router.push("/finder"),
+      color: "bg-blue-500 hover:bg-blue-600"
+    },
+    {
+      title: "Messages",
+      description: "Check your active conversations",
+      icon: MessageCircle,
+      action: () => router.push("/messages"),
+      color: "bg-green-500 hover:bg-green-600"
+    },
+    {
+      title: "Requests",
+      description: "Review pending connection requests",
+      icon: Users,
+      action: () => router.push("/requests"),
+      color: "bg-orange-500 hover:bg-orange-600"
     }
-    getUser()
-    
-    // Restore cached search state
-    restoreCachedSearchState()
-  }, [])
+  ]
 
-  const restoreCachedSearchState = async () => {
-    const cachedState = getDashboardSearchState()
-    if (cachedState) {
-      setRoommates(cachedState.roommates)
-      setConnectionStatuses(cachedState.connectionStatuses)
-      setLastSearchParams({
-        location: cachedState.location,
-        latitude: cachedState.latitude,
-        longitude: cachedState.longitude,
-        radius: cachedState.radius
-      })
-      setHasSearched(true)
-      console.log('Restored search results from cache:', cachedState.location)
-      
-      // Refresh connection statuses to ensure they're up-to-date
-      if (cachedState.roommates.length > 0) {
-        console.log('Refreshing connection statuses for cached results...')
-        const searchParams = {
-          location: cachedState.location,
-          latitude: cachedState.latitude,
-          longitude: cachedState.longitude,
-          radius: cachedState.radius
-        }
-        await fetchConnectionStatuses(
-          cachedState.roommates.map(profile => profile.id),
-          cachedState.roommates,
-          searchParams
-        )
-      }
-    }
-  }
-
-  const handleLocationSearch = async (
-    location: string, 
-    latitude: number, 
-    longitude: number, 
-    radius: number
-  ) => {
-    if (!currentUser) {
-      setError("Please log in to search for roommates")
-      return
-    }
-
-    setIsSearching(true)
-    setError(null)
-    setHasSearched(true)
-
-    try {
-      // Update user's search preferences with coordinates we already have
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          search_location: location,
-          search_radius: radius,
-          latitude: latitude,
-          longitude: longitude
-        })
-        .eq('id', currentUser.id)
-      
-      if (updateError) {
-        console.error('Error updating user search location:', updateError)
-      }
-
-      // Search for roommates
-      const { data, error: searchError } = await searchRoommates(latitude, longitude, radius)
-      
-      if (searchError) {
-        throw searchError
-      }
-
-      setRoommates(data || [])
-      
-      // Fetch connection statuses for all found roommates
-      if (data && data.length > 0) {
-        await fetchConnectionStatuses(data.map(profile => profile.id))
-      }
-
-      // Store search parameters for future use
-      setLastSearchParams({ location, latitude, longitude, radius })
-      
-      // Save search state to cache
-      saveDashboardSearchState({
-        location,
-        latitude,
-        longitude,
-        radius,
-        roommates: data || [],
-        connectionStatuses: {}  // Will be updated when connection statuses are fetched
-      })
-    } catch (err) {
-      console.error("Search error:", err)
-      setError("Failed to search for roommates. Please try again.")
-      setRoommates([])
-    } finally {
-      setIsSearching(false)
-    }
-  }
-
-  const fetchConnectionStatuses = async (profileIds: string[], currentRoommates?: (Profile & { distance: number })[], currentSearchParams?: {location: string, latitude: number, longitude: number, radius: number}) => {
-    try {
-      const statusPromises = profileIds.map(async (profileId) => {
-        const { data: statusData } = await getConnectionStatus(profileId)
-        return { profileId, statusData: statusData || { status: 'none' } }
-      })
-      
-      const statuses = await Promise.all(statusPromises)
-      const statusMap: Record<string, { status: 'none' | 'pending_sent' | 'pending_received' | 'connected', requestId?: string }> = {}
-      
-      statuses.forEach(({ profileId, statusData }) => {
-        statusMap[profileId] = statusData
-      })
-      
-      setConnectionStatuses(statusMap)
-      
-      // Update cache with connection statuses
-      const searchParams = currentSearchParams || lastSearchParams
-      const roommateList = currentRoommates || roommates
-      
-      if (searchParams && roommateList) {
-        saveDashboardSearchState({
-          location: searchParams.location,
-          latitude: searchParams.latitude,
-          longitude: searchParams.longitude,
-          radius: searchParams.radius,
-          roommates: roommateList,
-          connectionStatuses: statusMap
-        })
-      }
-    } catch (err) {
-      console.error('Error fetching connection statuses:', err)
-    }
-  }
-
-  const handleConnect = async (profileId: string) => {
-    const profile = roommates.find(p => p.id === profileId)
-    if (!profile) return
-    
-    setSelectedProfile(profile)
-    setIsModalOpen(true)
-  }
-
-  const handleConnectionSuccess = () => {
-    const displayName = selectedProfile?.display_name || selectedProfile?.full_name || 'the user'
-    setSuccessMessage(`Connection request sent to ${displayName}!`)
-    
-    // Update the connection status for this profile
-    if (selectedProfile) {
-      const newStatus = { status: 'pending_sent' as const }
-      setConnectionStatuses(prev => ({
-        ...prev,
-        [selectedProfile.id]: newStatus
-      }))
-      
-      // Update cached status
-      updateCachedConnectionStatus(selectedProfile.id, newStatus)
-    }
-    
-    setSelectedProfile(null)
-    setIsModalOpen(false)
-    
-    // Clear success message after 5 seconds
-    setTimeout(() => setSuccessMessage(null), 5000)
-  }
-
-  const handleMessage = (profileId: string) => {
-    // Navigate to chat page - will be implemented when messaging system is ready
-    console.log('Navigate to chat with:', profileId)
-    // router.push(`/chat/${profileId}`)
-  }
-
-  const handleViewProfile = (profileId: string) => {
-    // Navigate to profile view - will be implemented when profile view is ready
-    console.log('View profile:', profileId)
-    // router.push(`/profile/view/${profileId}`)
-  }
-
-  const handleAcceptRequest = async (profileId: string, requestId: string) => {
-    try {
-      const { error } = await respondToConnectionRequest(requestId, 'accepted')
-      
-      if (error) {
-        console.error('Error accepting request:', error)
-        setError('Failed to accept connection request')
-      } else {
-        // Update connection status to connected
-        const newStatus = { status: 'connected' as const, requestId }
-        setConnectionStatuses(prev => ({
-          ...prev,
-          [profileId]: newStatus
-        }))
-        
-        // Update cached status
-        updateCachedConnectionStatus(profileId, newStatus)
-        
-        const profile = roommates.find(p => p.id === profileId)
-        const displayName = profile?.display_name || profile?.full_name || 'the user'
-        setSuccessMessage(`Connection accepted! You're now connected with ${displayName}`)
-        
-        // Clear success message after 5 seconds
-        setTimeout(() => setSuccessMessage(null), 5000)
-      }
-    } catch (err) {
-      console.error('Error:', err)
-      setError('An unexpected error occurred')
-    }
-  }
-
-  const handleDeclineRequest = async (profileId: string, requestId: string) => {
-    try {
-      const { error } = await respondToConnectionRequest(requestId, 'declined')
-      
-      if (error) {
-        console.error('Error declining request:', error)
-        setError('Failed to decline connection request')
-      } else {
-        // Update connection status to none (request is declined and removed)
-        const newStatus = { status: 'none' as const }
-        setConnectionStatuses(prev => ({
-          ...prev,
-          [profileId]: newStatus
-        }))
-        
-        // Update cached status
-        updateCachedConnectionStatus(profileId, newStatus)
-        
-        setSuccessMessage('Connection request declined')
-        
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccessMessage(null), 3000)
-      }
-    } catch (err) {
-      console.error('Error:', err)
-      setError('An unexpected error occurred')
-    }
-  }
+  const stats = [
+    { label: "Profile Views", value: "24", change: "+12%", icon: TrendingUp },
+    { label: "Active Chats", value: "3", change: "+1", icon: MessageCircle },
+    { label: "Pending Requests", value: "5", change: "New", icon: Users },
+  ]
 
   return (
-    <div className="min-h-screen">
-      <Navigation />
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        <div className="mb-12">
-          <h1 className="text-3xl font-semibold tracking-tight mb-2">
-            Find roommates
-          </h1>
+    <AppLayout>
+      <div className="flex flex-1 flex-col gap-6 p-6">
+        {/* Welcome Section */}
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Welcome back!</h1>
           <p className="text-muted-foreground">
-            Discover compatible roommates in your area
+            Here's what's happening with your roommate search
           </p>
         </div>
 
-        <Card className="mb-8">
-          <CardContent className="p-6">
-            <LocationSearch
-              onLocationSelect={handleLocationSearch}
-              isSearching={isSearching}
-              initialLocation={lastSearchParams?.location || ""}
-              initialRadius={lastSearchParams?.radius || 25}
-            />
-          </CardContent>
-        </Card>
-
-        {error && (
-          <Card className="mb-8 border-destructive">
-            <CardContent className="p-6">
-              <p className="text-sm text-destructive">{error}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {successMessage && (
-          <Card className="mb-8 border-green-200 bg-green-50">
-            <CardContent className="p-6">
-              <p className="text-sm text-green-700">{successMessage}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {hasSearched && (
-          <>
-            <div className="mb-6">
-              <h2 className="text-xl font-medium mb-2">
-                {isSearching ? "Searching..." : `Found ${roommates.length} roommate${roommates.length !== 1 ? 's' : ''}`}
-              </h2>
-              {lastSearchParams && (
-                <p className="text-sm text-muted-foreground">
-                  Near {lastSearchParams.location} • Within {lastSearchParams.radius} miles
+        {/* Stats Cards */}
+        <div className="grid gap-4 md:grid-cols-3">
+          {stats.map((stat) => (
+            <Card key={stat.label}>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {stat.label}
+                </CardTitle>
+                <stat.icon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stat.value}</div>
+                <p className="text-xs text-muted-foreground">
+                  {stat.change} from last week
                 </p>
-              )}
-            </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
 
-            {roommates.length > 0 && (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {roommates.map((profile) => (
-                  <RoommateCard
-                    key={profile.id}
-                    profile={profile}
-                    connectionStatus={connectionStatuses[profile.id] || { status: 'none' }}
-                    onConnect={handleConnect}
-                    onMessage={handleMessage}
-                    onViewProfile={handleViewProfile}
-                    onAcceptRequest={handleAcceptRequest}
-                    onDeclineRequest={handleDeclineRequest}
-                  />
-                ))}
-              </div>
-            )}
-
-            {roommates.length === 0 && !isSearching && (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <h3 className="text-lg font-medium mb-2">No roommates found</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Try expanding your search radius or searching a different location.
-                  </p>
+        {/* Quick Actions */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+          <div className="grid gap-4 md:grid-cols-3">
+            {quickActions.map((action) => (
+              <Card 
+                key={action.title} 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={action.action}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-start space-x-3">
+                    <div className={`p-2 rounded-lg ${action.color} text-white`}>
+                      <action.icon className="h-5 w-5" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="font-medium">{action.title}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {action.description}
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
-            )}
-          </>
-        )}
+            ))}
+          </div>
+        </div>
 
-        {!hasSearched && (
+        {/* Recent Activity */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
           <Card>
-            <CardContent className="p-12 text-center">
-              <h3 className="text-lg font-medium mb-2">Start your search</h3>
-              <p className="text-muted-foreground">
-                Enter a location above to find compatible roommates in your area.
-              </p>
+            <CardContent className="p-6">
+              <div className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <div className="flex-1">
+                    <p className="text-sm">New message from John Doe</p>
+                    <p className="text-xs text-muted-foreground">2 hours ago</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <div className="flex-1">
+                    <p className="text-sm">Connection request from Jane Smith</p>
+                    <p className="text-xs text-muted-foreground">5 hours ago</p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  <div className="flex-1">
+                    <p className="text-sm">Profile viewed by 3 people</p>
+                    <p className="text-xs text-muted-foreground">Yesterday</p>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
-        )}
+        </div>
 
-        <ConnectionRequestModal
-          profile={selectedProfile}
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false)
-            setSelectedProfile(null)
-          }}
-          onSuccess={handleConnectionSuccess}
-        />
+        {/* Coming Soon Section */}
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Coming Soon</h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card className="opacity-75">
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 rounded-lg bg-gray-300 text-gray-600">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-700">Analytics Dashboard</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Detailed insights about your roommate search
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="opacity-75">
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 rounded-lg bg-gray-300 text-gray-600">
+                    <Clock className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-gray-700">Smart Suggestions</h3>
+                    <p className="text-sm text-muted-foreground">
+                      AI-powered roommate recommendations
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }

@@ -171,6 +171,69 @@ export class ChatAPI {
     return data || []
   }
 
+  static async getLastMessage(conversationId: string): Promise<Message | null> {
+    const { data, error } = await supabase
+      .from('chat_messages')
+      .select(`
+        id,
+        conversation_id,
+        sender_id,
+        content,
+        message_type,
+        created_at,
+        updated_at,
+        profiles!chat_messages_sender_id_fkey (
+          display_name,
+          avatar_url
+        )
+      `)
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (error) {
+      return null
+    }
+
+    return {
+      id: data.id,
+      conversation_id: data.conversation_id,
+      sender_id: data.sender_id,
+      content: data.content,
+      message_type: data.message_type,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+      sender_name: (data.profiles as any)?.display_name || 'Unknown',
+      sender_avatar_url: (data.profiles as any)?.avatar_url || null
+    }
+  }
+
+  // ========================================
+  // READ STATUS TRACKING
+  // ========================================
+
+  static async markConversationRead(conversationId: string): Promise<boolean> {
+    const { error } = await supabase.rpc('mark_conversation_read', {
+      conversation_uuid: conversationId
+    })
+
+    return !error
+  }
+
+  static async hasUnreadMessages(conversationId: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('has_unread_messages', {
+      conversation_uuid: conversationId
+    })
+
+    if (error) {
+      console.error('Error checking unread messages:', error)
+      return false
+    }
+
+    return data === true
+  }
+
   // ========================================
   // MESSAGING
   // ========================================
