@@ -94,7 +94,8 @@ export default function RequestsPage() {
 
   return (
     <AppLayout>
-      <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+      <div className="h-[calc(100vh-4rem)] overflow-y-auto">
+        <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
         <div className="max-w-4xl mx-auto w-full">
           {/* Error Banner */}
           {error && (
@@ -223,6 +224,7 @@ export default function RequestsPage() {
             </div>
           )}
         </div>
+      </div>
       </div>
     </AppLayout>
   );

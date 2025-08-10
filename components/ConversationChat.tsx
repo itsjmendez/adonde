@@ -28,6 +28,7 @@ export function ConversationChat({
   const [hasMore, setHasMore] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Real-time features
   const { typers, handleTyping, stopTyping } =
@@ -46,6 +47,11 @@ export function ConversationChat({
     if (!conversationId) return;
 
     loadMessages();
+    
+    // Auto-focus input when conversation loads
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 200);
   }, [conversationId]);
 
   // Subscribe to new messages
@@ -132,6 +138,11 @@ export function ConversationChat({
     setMessages((prev) => [...prev, optimisticMessage]);
     setNewMessage('');
     setSending(true);
+    
+    // Keep input focused for smooth typing experience
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 10);
 
     try {
       const messageId = await ChatAPI.sendMessage(
@@ -157,6 +168,10 @@ export function ConversationChat({
       setNewMessage(messageContent);
     } finally {
       setSending(false);
+      // Ensure input stays focused after sending
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 10);
     }
   };
 
@@ -173,12 +188,12 @@ export function ConversationChat({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      {/* <div className="border-b border-input p-4">
-        <h2 className="text-lg font-semibold">{otherUserName} tsts</h2>
-      </div> */}
+      {/* Header - Fixed */}
+      <div className="flex-shrink-0 border-b border-input p-4 bg-white">
+        <h2 className="text-lg font-semibold">{otherUserName}</h2>
+      </div>
 
-      {/* Messages */}
+      {/* Messages - Scrollable */}
       <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto p-4 space-y-4"
@@ -265,27 +280,30 @@ export function ConversationChat({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Message Input */}
-      <form onSubmit={sendMessage} className="border-t border-input p-4">
-        <div className="flex gap-2">
-          <Input
-            value={newMessage}
-            onChange={handleInputChange}
-            onBlur={handleInputBlur}
-            placeholder="Type a message..."
-            disabled={sending}
-            maxLength={1000}
-            className="flex-1"
-          />
-          <Button
-            type="submit"
-            disabled={!newMessage.trim() || sending}
-            size="icon"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
-        </div>
-      </form>
+      {/* Message Input - Fixed at bottom */}
+      <div className="flex-shrink-0 border-t border-input p-4 bg-white">
+        <form onSubmit={sendMessage}>
+          <div className="flex gap-2">
+            <Input
+              ref={inputRef}
+              value={newMessage}
+              onChange={handleInputChange}
+              onBlur={handleInputBlur}
+              placeholder="Type a message..."
+              disabled={sending}
+              maxLength={1000}
+              className="flex-1"
+            />
+            <Button
+              type="submit"
+              disabled={!newMessage.trim() || sending}
+              size="icon"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

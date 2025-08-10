@@ -272,7 +272,7 @@ export default function FinderPage() {
 
   return (
     <AppLayout>
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
         {/* Header Section */}
         <div className="border-b border-gray-200 bg-white px-6 py-6">
           <div className="max-w-6xl mx-auto">

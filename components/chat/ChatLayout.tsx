@@ -66,7 +66,7 @@ export function ChatLayout({
     // Mobile: Show either conversation list OR selected chat
     if (selectedChat && selectedConversation) {
       return (
-        <div className="flex-1 flex flex-col h-full">
+        <div className="h-full flex flex-col">
           <ChatPanel
             conversationId={selectedChat}
             conversation={selectedConversation}
@@ -78,42 +78,40 @@ export function ChatLayout({
 
     // Mobile: Just show the conversation list
     return (
-      <div className="space-y-1 p-4">
-        {loading ? (
-          <ConversationListSkeleton />
-        ) : conversations.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg
-                className="w-8 h-8 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                />
-              </svg>
+      <div className="p-4 flex flex-col min-h-0 flex-1">
+        <div
+          className={`flex-1 transition-all duration-300 ease-in-out ${
+            loading ? 'opacity-50' : 'opacity-100'
+          }`}
+        >
+          {conversations.length === 0 && !loading ? (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <p className="text-gray-500">No conversations yet</p>
+              </div>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No conversations yet
-            </h3>
-            <p className="text-sm text-gray-500">
-              Start connecting with roommates to begin chatting
-            </p>
+          ) : (
+            <div className="space-y-1">
+              {conversations.map((conversation, index) => (
+                <div
+                  key={conversation.id}
+                  className="animate-in fade-in duration-300"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <ConversationItem
+                    conversation={conversation}
+                    currentUserId={currentUserId}
+                    onClick={() => handleConversationClick(conversation.id)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {loading && conversations.length === 0 && (
+          <div className="flex items-center justify-center p-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
           </div>
-        ) : (
-          conversations.map((conversation) => (
-            <ConversationItem
-              key={conversation.id}
-              conversation={conversation}
-              currentUserId={currentUserId}
-              onClick={() => handleConversationClick(conversation.id)}
-            />
-          ))
         )}
       </div>
     );
@@ -122,14 +120,14 @@ export function ChatLayout({
   // Desktop: Two-column WhatsApp-style layout
   return (
     <div
-      className={`flex flex-1 bg-white overflow-hidden ${
+      className={`flex bg-white h-full ${
         fullScreen ? '' : 'border border-gray-200 rounded-lg m-4'
       }`}
     >
       {/* Left Panel - Conversations */}
-      <div className="w-80 border-r border-gray-200 flex flex-col bg-white">
-        {/* Conversations Header */}
-        <div className="p-4 border-b border-gray-200 bg-white">
+      <div className="w-80 border-r border-gray-200 flex flex-col bg-white h-full">
+        {/* Conversations Header - Fixed */}
+        <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-white">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900">Chats</h2>
             <span className="text-sm text-gray-500">
@@ -138,45 +136,44 @@ export function ChatLayout({
           </div>
         </div>
 
-        {/* Conversations List */}
+        {/* Conversations List - Scrollable */}
         <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <ConversationListSkeleton />
-          ) : conversations.length === 0 ? (
-            <div className="p-8 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                </svg>
+          <div
+            className={`transition-all duration-300 ease-in-out ${
+              loading ? 'opacity-50' : 'opacity-100'
+            }`}
+          >
+            {conversations.length === 0 && !loading ? (
+              <div className="flex items-center justify-center p-8 min-h-[200px]">
+                <p className="text-gray-500">No conversations yet</p>
               </div>
-              <p className="text-sm text-gray-500">No conversations yet</p>
+            ) : (
+              conversations.map((conversation, index) => (
+                <div
+                  key={conversation.id}
+                  className="animate-in fade-in duration-300"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <ConversationItem
+                    conversation={conversation}
+                    currentUserId={currentUserId}
+                    isSelected={conversation.id === selectedChat}
+                    onClick={() => handleConversationClick(conversation.id)}
+                  />
+                </div>
+              ))
+            )}
+          </div>
+          {loading && conversations.length === 0 && (
+            <div className="flex items-center justify-center p-8">
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
             </div>
-          ) : (
-            conversations.map((conversation) => (
-              <ConversationItem
-                key={conversation.id}
-                conversation={conversation}
-                currentUserId={currentUserId}
-                isSelected={conversation.id === selectedChat}
-                onClick={() => handleConversationClick(conversation.id)}
-              />
-            ))
           )}
         </div>
       </div>
 
       {/* Right Panel - Chat */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         {selectedChat ? (
           <ChatPanel
             conversationId={selectedChat}
@@ -184,30 +181,8 @@ export function ChatLayout({
             currentUserId={currentUserId}
           />
         ) : (
-          <div className="flex-1 flex items-center justify-center bg-gray-50">
-            <div className="text-center">
-              <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg
-                  className="w-12 h-12 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-medium text-gray-900 mb-2">
-                Start a conversation
-              </h3>
-              <p className="text-gray-500">
-                Select a chat from the list to start messaging
-              </p>
-            </div>
+          <div className="flex-1 bg-gray-50 flex items-center justify-center">
+            <p className="text-gray-500">Select a chat to start messaging</p>
           </div>
         )}
       </div>
@@ -242,19 +217,25 @@ function ConversationItem({
     : conversation.sender_avatar_url;
 
   useEffect(() => {
+    let isMounted = true;
+
     const loadLastMessage = async () => {
       try {
         // Get conversation ID from connection ID
         const convId = await ChatAPI.getConversationByConnectionId(
           conversation.id
         );
+
+        if (!isMounted) return;
         setConversationId(convId);
 
         if (convId) {
           // Get last message for this conversation
           const message = await ChatAPI.getLastMessage(convId);
+
+          if (!isMounted) return;
           setLastMessage(message);
-          
+
           // Simple check: if there's a message and it's not from current user, consider it "new"
           if (message && message.sender_id !== currentUserId) {
             setHasUnread(true);
@@ -263,33 +244,39 @@ function ConversationItem({
       } catch (error) {
         console.error('Error loading last message:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadLastMessage();
-    
-    // Subscribe to new messages for this conversation to update in real-time
-    if (conversationId) {
-      const handleNewMessage = (message: Message) => {
-        // Update last message
-        setLastMessage(message);
-        
-        // Mark as unread if message is from other user
-        if (message.sender_id !== currentUserId) {
-          setHasUnread(true);
-        }
-      };
-      
-      ChatAPI.subscribeToMessages(conversationId, handleNewMessage);
-      
-      return () => {
-        if (conversationId) {
-          ChatAPI.unsubscribeFromMessages(conversationId, handleNewMessage);
-        }
-      };
-    }
-  }, [conversation.id, conversationId, currentUserId]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [conversation.id, currentUserId]);
+
+  // Separate effect for real-time subscriptions
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const handleNewMessage = (message: Message) => {
+      // Update last message
+      setLastMessage(message);
+
+      // Mark as unread if message is from other user
+      if (message.sender_id !== currentUserId) {
+        setHasUnread(true);
+      }
+    };
+
+    ChatAPI.subscribeToMessages(conversationId, handleNewMessage);
+
+    return () => {
+      ChatAPI.unsubscribeFromMessages(conversationId, handleNewMessage);
+    };
+  }, [conversationId, currentUserId]);
 
   const handleClick = () => {
     // Clear unread state when user clicks
@@ -324,7 +311,13 @@ function ConversationItem({
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-start mb-1">
-          <h3 className={`truncate ${hasUnread ? 'font-bold text-gray-900' : 'font-medium text-gray-900'}`}>
+          <h3
+            className={`truncate ${
+              hasUnread
+                ? 'font-bold text-gray-900'
+                : 'font-medium text-gray-900'
+            }`}
+          >
             {displayName}
           </h3>
         </div>
@@ -474,9 +467,9 @@ function ChatPanel({
     : conversation.receiver_name;
 
   return (
-    <div className="flex-1 flex flex-col h-full">
-      {/* Chat Header - show on mobile */}
-      <div className="flex items-center p-4 border-b border-gray-200 bg-white lg:hidden">
+    <div className="flex flex-col h-full">
+      {/* Chat Header - show on mobile - Fixed */}
+      <div className="flex-shrink-0 flex items-center p-4 border-b border-gray-200 bg-white lg:hidden">
         <button
           onClick={() => {
             const currentPath = window.location.pathname;
@@ -535,7 +528,7 @@ function ChatPanel({
         </div>
       </div>
 
-      {/* WebSocket Chat Component - Pass all required props */}
+      {/* WebSocket Chat Component - Flexible */}
       <div className="flex-1 min-h-0">
         <ConversationChat
           conversationId={realConversationId}
@@ -544,25 +537,6 @@ function ChatPanel({
           otherUserName={otherUserName || 'User'}
         />
       </div>
-    </div>
-  );
-}
-
-function ConversationListSkeleton() {
-  return (
-    <div className="space-y-1">
-      {[...Array(5)].map((_, i) => (
-        <div key={i} className="flex items-center p-3 animate-pulse">
-          <div className="w-12 h-12 bg-gray-200 rounded-full mr-3"></div>
-          <div className="flex-1">
-            <div className="flex justify-between mb-2">
-              <div className="h-4 bg-gray-200 rounded w-24"></div>
-              <div className="h-3 bg-gray-200 rounded w-12"></div>
-            </div>
-            <div className="h-3 bg-gray-200 rounded w-40"></div>
-          </div>
-        </div>
-      ))}
     </div>
   );
 }

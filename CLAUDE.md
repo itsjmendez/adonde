@@ -14,6 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Connection System**: Send/receive connection requests with accept/decline
 - **Messaging**: ✅ Advanced real-time chat with clean UI and instant updates (COMPLETED)
 - **Navigation System**: ✅ Modern sidebar navigation with WhatsApp-style chat interface (COMPLETED)
+- **Layout System**: ✅ Fixed header/sidebar with independent content scrolling (COMPLETED)
 - **Matching Algorithm**: Compatibility based on lifestyle preferences
 
 ## Development Commands
@@ -55,7 +56,8 @@ Before creating or committing any file, verify it doesn't contain:
   - `dashboard/` - Overview page with stats and quick actions
   - `finder/` - Roommate search interface with location-based filtering
   - `messages/` - WhatsApp-style chat interface with real-time updates
-  - `connections/` - Connection requests management (accept/decline)
+  - `requests/` - Connection requests management (accept/decline)
+  - `connections/` - Connection management and messaging (legacy but active)
   - `chat/[connectionId]/` - Dynamic messaging interface (legacy fallback)
   - `layout.tsx` - Root layout with Geist font configuration
   - `page.tsx` - Landing page with hero section
@@ -278,6 +280,54 @@ Successfully restructured the entire app navigation system and improved chat UI/
 - `components/ConversationChat.tsx` - Clean header without presence indicators
 
 The navigation system is now **modern and intuitive** with a clean WhatsApp-style messaging experience and real-time updates throughout.
+
+---
+
+## ✅ COMPLETED: Professional Layout System & Input Focus Management
+
+### Implementation Summary
+
+Implemented professional-grade layout system with fixed navigation and smooth user interactions:
+
+#### **Fixed Header/Sidebar Layout**
+
+- **Fixed Navigation**: Sidebar and breadcrumb header stay fixed during scrolling
+- **Independent Scroll Areas**: Content areas scroll independently without affecting navigation
+- **Viewport Height Management**: Uses `calc(100vh-4rem)` for proper height constraints
+- **Consistent Experience**: Same layout pattern across all pages (dashboard, finder, messages, requests)
+
+#### **Chat Input Focus Management**
+
+- **Auto-Focus**: Input field automatically focuses when conversation loads
+- **Persistent Focus**: Input stays focused after sending messages for smooth conversation flow
+- **React Refs**: Proper ref forwarding through shadcn/ui Input component
+- **Timing Optimization**: Strategic setTimeout delays for DOM focus management
+
+#### **Professional UX Standards**
+
+- **No Header Scrolling**: Navigation elements remain accessible at all times
+- **Clean Visual Hierarchy**: Content scrolls smoothly while navigation stays put
+- **Mobile Responsive**: Layout works properly on all screen sizes
+- **Industry Standard**: Matches UX patterns from Gmail, Slack, Discord
+
+#### **Files Modified**
+
+- `components/AppLayout.tsx` - Core layout wrapper with proper flex structure
+- `components/ui/input.tsx` - Fixed React.forwardRef for ref management  
+- `components/ConversationChat.tsx` - Added input focus logic with useRef
+- `app/dashboard/page.tsx` - Applied height constraint pattern
+- `app/finder/page.tsx` - Applied height constraint pattern  
+- `app/requests/page.tsx` - Applied height constraint pattern
+- `app/messages/page.tsx` - Kept existing working solution intact
+
+#### **Codebase Cleanup**
+
+- **Removed unused files**: `components/ui/image-upload.tsx` (duplicate component)
+- **Cleaned migration files**: Removed `docs/migration-step-*.md` files from repository
+- **Security compliance**: Ensured no sensitive files are committed to git
+- **Code audit**: Verified all components and hooks are actively used
+
+The app now provides a **professional user experience** with modern layout patterns and smooth interaction flows.
 
 ---
 
