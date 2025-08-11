@@ -153,6 +153,18 @@ export async function respondToConnectionRequest(requestId: string, response: 'a
   return { data, error }
 }
 
+export async function getRequestSenderProfile(requestId: string): Promise<{ data: Profile | null; error: any }> {
+  const { data, error } = await supabase.rpc('get_request_sender_profile', {
+    request_id: requestId
+  })
+
+  if (error) return { data: null, error }
+  
+  // The function returns an array, but we expect a single profile
+  const profile = data && data.length > 0 ? data[0] : null
+  return { data: profile, error: null }
+}
+
 export async function getConnectionStatus(otherUserId: string): Promise<{ 
   data: { 
     status: 'none' | 'pending_sent' | 'pending_received' | 'connected'
